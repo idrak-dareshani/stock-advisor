@@ -1,0 +1,8 @@
+gradio
+langchain
+openai
+requests
+pandas
+numpy
+matplotlib
+python-dotenv
