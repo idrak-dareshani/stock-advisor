@@ -188,4 +188,6 @@ demo.css = """
 #input-row { align-items: center; margin-top: 10px; margin-bottom: 10px; }
 """
 
-demo.launch()
+# When deploying on Render or similar platforms bind to 0.0.0.0 and use the PORT env var
+port = int(os.getenv("PORT", 7860))
+demo.launch(server_name="0.0.0.0", server_port=port, share=False)
