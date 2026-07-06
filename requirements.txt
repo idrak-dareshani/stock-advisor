@@ -1,6 +1,6 @@
-gradio
+streamlit
 langchain
-openai
+anthropic
 requests
 pandas
 numpy

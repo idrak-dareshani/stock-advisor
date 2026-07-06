@@ -2,13 +2,13 @@ import os
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt
-import gradio as gr
-from openai import OpenAI
+import streamlit as st
+import anthropic
 from dotenv import load_dotenv
 
 # === Load API keys ===
 load_dotenv()
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
 ALPHA_KEY = os.getenv("ALPHAVANTAGE_API_KEY")
 
 
@@ -142,50 +142,51 @@ Base your reasoning on SMA, EMA, RSI, and MACD. Conclude with a Buy / Hold / Sel
 
 {result['summary']}
     """
-    completion = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[
-            {"role": "system", "content": "You are a professional financial advisor who writes concise, factual analyses."},
-            {"role": "user", "content": prompt},
-        ],
+    message = client.messages.create(
+        model="claude-opus-4-8",
+        max_tokens=1024,
+        system="You are a professional financial advisor who writes concise, factual analyses.",
+        messages=[{"role": "user", "content": prompt}],
     )
-    advice = completion.choices[0].message.content
+    advice = message.content[0].text
     return result["summary"], result["chart"], advice
 
 
-# === Gradio UI ===
-with gr.Blocks(title="AI Quant Stock Advisor (Free)") as demo:
-    gr.Markdown(
-        """
-        <h1 style='text-align:center'>📈 AI Quant Stock Advisor (Free API)</h1>
-        <p style='text-align:center'>
-        Technical analysis with SMA, EMA, RSI & MACD via Alpha Vantage (free tier)
-        </p>
-        """
+# === Streamlit UI ===
+st.set_page_config(page_title="AI Quant Stock Advisor", page_icon="📈")
+
+st.markdown(
+    """
+    <h1 style='text-align:center'>📈 AI Quant Stock Advisor</h1>
+    <p style='text-align:center'>
+    Technical analysis with SMA, EMA, RSI & MACD via Alpha Vantage (free tier)
+    </p>
+    """,
+    unsafe_allow_html=True,
+)
+
+input_col, button_col = st.columns([4, 1])
+with input_col:
+    symbol_input = st.text_input(
+        "Stock Symbol",
+        placeholder="Enter e.g., AAPL  MSFT  TSLA",
     )
+with button_col:
+    st.write("")
+    st.write("")
+    analyze_clicked = st.button("🔍 Analyze", type="primary", use_container_width=True)
 
-    # Properly aligned input + button
-    with gr.Row(elem_id="input-row"):
-        symbol_input = gr.Textbox(
-            label="Stock Symbol",
-            placeholder="Enter e.g., AAPL  MSFT  TSLA",
-            scale=4
-        )
-        analyze_btn = gr.Button("🔍 Analyze", variant="primary", scale=1)
+summary_tab, advice_tab = st.tabs(["📊 Summary & Chart", "🤖 AI Recommendation"])
 
-    with gr.Tabs():
-        with gr.TabItem("📊 Summary & Chart"):
-            summary_box = gr.Markdown()
-            chart_image = gr.Image(label="Price Chart (30 Days)")
-
-        with gr.TabItem("🤖 AI Recommendation"):
-            ai_advice = gr.Markdown()
-
-    analyze_btn.click(stock_agent, inputs=symbol_input, outputs=[summary_box, chart_image, ai_advice])
-
-# Optional CSS tweak for alignment
-demo.css = """
-#input-row { align-items: center; margin-top: 10px; margin-bottom: 10px; }
-"""
-
-demo.launch()
+if analyze_clicked:
+    if not symbol_input:
+        st.warning("Please enter a stock symbol.")
+    else:
+        with st.spinner(f"Analyzing {symbol_input.upper()}..."):
+            summary, chart, advice = stock_agent(symbol_input)
+        with summary_tab:
+            st.markdown(summary)
+            if chart:
+                st.image(chart, caption="Price Chart (30 Days)")
+        with advice_tab:
+            st.markdown(advice)
